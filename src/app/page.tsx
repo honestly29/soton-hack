@@ -13,7 +13,6 @@ type Source = {
 
 export default function Home() {
   const [sources, setSources] = useState<Source[]>([]);
-  const [driveClicked, setDriveClicked] = useState(false);
 
   const addFiles = useCallback((files: File[]) => {
     const newSources: Source[] = files.map((f) => ({
@@ -43,13 +42,7 @@ export default function Home() {
       <div className="flex w-full max-w-content flex-col items-center gap-rhythm">
         <SourceInput onFilesAdded={addFiles} onRepoAdded={addRepo} />
 
-        <button
-          type="button"
-          onClick={() => setDriveClicked(true)}
-          className="cursor-pointer border-none bg-transparent p-0 font-mono text-[length:inherit] leading-[inherit] text-divider transition-colors hover:text-foreground"
-        >
-          {driveClicked ? "coming soon." : "connect google drive"}
-        </button>
+        {/* TODO: Google Drive integration */}
 
         <SourceList sources={sources} onRemove={removeSource} />
 

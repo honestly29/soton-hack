@@ -14,8 +14,11 @@
     "lowdb": "^7.0.1",
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
+    "officeparser": "^6.0.4",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "repomix": "^1.12.0",
+    "unpdf": "^1.4.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
