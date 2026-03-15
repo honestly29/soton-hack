@@ -135,30 +135,28 @@ export default function Home() {
       <TabBar tabs={tabs} current={currentTab} onSelect={setCurrentTab} />
 
       <div className="flex flex-1 overflow-hidden">
-        {currentTab === "chat" && (
-          <>
-            <div className="flex-1 overflow-hidden">
-              <ChatPanel
-                endpoint="/api/chat"
-                onStatusChange={handleChatStatusChange}
+        <div className={`flex flex-1 overflow-hidden ${currentTab !== "chat" ? "hidden" : ""}`}>
+          <div className="flex-1 overflow-hidden">
+            <ChatPanel
+              endpoint="/api/chat"
+              onStatusChange={handleChatStatusChange}
+            />
+          </div>
+          <div className="w-96 shrink-0 overflow-y-auto">
+            {stage === "ingestion" && (
+              <ChatSidebar
+                ppr={pprState.ppr}
+                progress={pprState.pprProgress}
+                confirmed={pprState.pprConfirmed}
+                requiredDone={requiredDone}
+                onFieldEdit={handleFieldEdit}
+                onConfirmAll={handleConfirmAll}
               />
-            </div>
-            <div className="w-96 shrink-0 overflow-y-auto">
-              {stage === "ingestion" && (
-                <ChatSidebar
-                  ppr={pprState.ppr}
-                  progress={pprState.pprProgress}
-                  confirmed={pprState.pprConfirmed}
-                  requiredDone={requiredDone}
-                  onFieldEdit={handleFieldEdit}
-                  onConfirmAll={handleConfirmAll}
-                />
-              )}
-              {stage === "conjecture" && <ConjectureSidebar />}
-              {stage === "exploration" && <ExplorationSidebar />}
-            </div>
-          </>
-        )}
+            )}
+            {stage === "conjecture" && <ConjectureSidebar />}
+            {stage === "exploration" && <ExplorationSidebar />}
+          </div>
+        </div>
 
         {currentTab === "surfaces" && (
           hasExploration ? (
