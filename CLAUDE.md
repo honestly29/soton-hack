@@ -24,6 +24,15 @@ AI-assisted GTM discovery system for identifying and validating beachhead custom
 - `AWS_REGION` — Bedrock region
 - `AWS_BEARER_TOKEN_BEDROCK` — Bedrock API key
 
+## Node version
+
+- **Required:** Node 22 LTS (pinned in `.nvmrc`, enforced via `engines` in `package.json`)
+- `.npmrc` sets `engine-strict=true` so `npm install` will error on wrong Node version
+
+## Known audit suppressions
+
+- **GHSA-5v7r-6r5c-r473** (`file-type` 13.0.0–21.3.0, via `officeparser`): infinite loop in ASF (Windows Media) parser on malformed input. Not exploitable in our case — we only parse DOCX/PPTX/PDF, never ASF/WMA/WMV. Waiting on officeparser to bump their `file-type` dep to `>=21.3.1`. Tracked upstream: https://github.com/nicktomlin/officeparser/issues — revisit when officeparser releases a new version.
+
 ## Do not
 
 - Commit credentials or `.env.local`
