@@ -87,16 +87,32 @@ export interface Bet {
   createdAt: string;
   createdBy: BetCreator;
   sectorIds: string[];
+  tracked: boolean;
+  validationPlan: string[];
 }
 
 export interface Conversation {
   id: string;
   rawNotes: string;
   companyCoordinates: Record<string, unknown>;
+  contactName: string | null;
   contactRole: string | null;
   sectorIds: string[];
   createdAt: string;
   processed: boolean;
+}
+
+// --- Conjectures ---
+
+export type ConjectureStatus = "pending" | "accepted" | "rejected" | "researched";
+
+export interface Conjecture {
+  id: string;
+  sectorId: string;
+  summary: string;
+  reasoning: string;
+  status: ConjectureStatus;
+  createdAt: string;
 }
 
 export interface ProductProblemRepresentation {

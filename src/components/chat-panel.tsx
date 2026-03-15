@@ -3,6 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
+import ProposalCard from "@/components/proposal-card";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -157,6 +158,10 @@ export default function ChatPanel({ endpoint, onStatusChange }: ChatPanelProps) 
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  const [proposalStatuses, setProposalStatuses] = useState<
+    Record<string, "pending" | "accepted" | "rejected">
+  >({});
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -178,6 +183,35 @@ export default function ChatPanel({ endpoint, onStatusChange }: ChatPanelProps) 
 
   const isStreaming = status === "streaming" || status === "submitted";
   const isBusy = isStreaming || uploading;
+
+  // --- Proposal accept/reject handlers ---
+  const handleAcceptProposal = useCallback(async (id: string) => {
+    setProposalStatuses((prev) => ({ ...prev, [id]: "accepted" }));
+    try {
+      await fetch(`/api/proposals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "accepted" }),
+      });
+    } catch {
+      // revert on failure
+      setProposalStatuses((prev) => ({ ...prev, [id]: "pending" }));
+    }
+  }, []);
+
+  const handleRejectProposal = useCallback(async (id: string) => {
+    setProposalStatuses((prev) => ({ ...prev, [id]: "rejected" }));
+    try {
+      await fetch(`/api/proposals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      });
+    } catch {
+      // revert on failure
+      setProposalStatuses((prev) => ({ ...prev, [id]: "pending" }));
+    }
+  }, []);
 
   // --- Close menu on outside click ---
   useEffect(() => {
@@ -364,19 +398,119 @@ export default function ChatPanel({ endpoint, onStatusChange }: ChatPanelProps) 
               {m.role === "user" ? "you" : "copilot"}
             </span>
             <div className="mt-1">
-              {m.parts.map((part, i) => {
+              {m.parts.map((part, i) => { const partKey = `${m.id}-${i}`;
                 if (part.type === "text") {
                   // Hide the extracted context prefix from the displayed message
                   const display = part.text.includes("=== ATTACHED:")
                     ? part.text.slice(part.text.lastIndexOf("---\n\n") + 5)
                     : part.text;
                   return (
-                    <p key={i} className="whitespace-pre-wrap">
+                    <p key={partKey} className="whitespace-pre-wrap">
                       {display}
                     </p>
                   );
                 }
-                // TODO: render tool call parts (checklist updates, proposals)
+                if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
+                  const toolPart = part as {
+                    type: string;
+                    toolName?: string;
+                    state: string;
+                    output?: unknown;
+                  };
+                  const toolName =
+                    toolPart.toolName ?? part.type.replace(/^tool-/, "");
+
+                  if (
+                    toolPart.state === "input-streaming" ||
+                    toolPart.state === "input-available"
+                  ) {
+                    return (
+                      <p key={partKey} className="text-muted italic">
+                        {toolName}...
+                      </p>
+                    );
+                  }
+
+                  if (toolPart.state === "output-available") {
+                    if (toolName === "generateConjectures") {
+                      const raw = toolPart.output;
+                      const conjectures = Array.isArray(raw)
+                        ? raw
+                        : (raw as Record<string, unknown> | undefined)
+                              ?.conjectures ?? [];
+                      return (
+                        <div key={partKey} className="mt-2 flex flex-col gap-2">
+                          {(
+                            conjectures as Array<{
+                              id: string;
+                              summary: string;
+                              reasoning?: string;
+                              sectorLabel?: string;
+                              status?: string;
+                            }>
+                          ).map((c) => (
+                            <ProposalCard
+                              key={c.id}
+                              id={c.id}
+                              title={c.sectorLabel ?? c.summary}
+                              summary={c.summary}
+                              reasoning={c.reasoning}
+                              status={
+                                proposalStatuses[c.id] ??
+                                (c.status as
+                                  | "pending"
+                                  | "accepted"
+                                  | "rejected") ??
+                                "pending"
+                              }
+                              onAccept={handleAcceptProposal}
+                              onReject={handleRejectProposal}
+                            />
+                          ))}
+                        </div>
+                      );
+                    }
+
+                    if (toolName === "updatePPRField") {
+                      const result = toolPart.output as
+                        | Record<string, unknown>
+                        | undefined;
+                      const field = result?.field;
+                      return (
+                        <p key={partKey} className="text-muted">
+                          updated{field ? ` ${String(field)}` : ""}
+                        </p>
+                      );
+                    }
+
+                    if (toolName === "runDeepResearch") {
+                      const result = toolPart.output as
+                        | Record<string, unknown>
+                        | undefined;
+                      return (
+                        <div
+                          key={partKey}
+                          className="mt-2 rounded border border-solid border-divider bg-surface px-4 py-3"
+                        >
+                          <p className="font-medium text-foreground">
+                            research complete
+                          </p>
+                          {result?.summary != null && (
+                            <p className="mt-1 text-muted">
+                              {String(result.summary)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // fallback for other completed tool calls
+                    return null;
+                  }
+
+                  // output-error, approval states, etc.
+                  return null;
+                }
                 return null;
               })}
             </div>

@@ -4,6 +4,7 @@ import type {
   Evidence,
   Bet,
   Conversation,
+  Conjecture,
   ProductProblemRepresentation,
   Proposal,
   PPRProgress,
@@ -17,6 +18,7 @@ export interface DbSchema {
   bets: Bet[];
   evidence: Evidence[];
   conversations: Conversation[];
+  conjectures: Conjecture[];
   proposals: Proposal[];
 }
 
@@ -28,6 +30,7 @@ const DEFAULT_DATA: DbSchema = {
   bets: [],
   evidence: [],
   conversations: [],
+  conjectures: [],
   proposals: [],
 };
 

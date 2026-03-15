@@ -4,6 +4,10 @@ import { useState, useCallback, useEffect } from "react";
 import TabBar, { type TabId, type TabDef } from "@/components/tab-bar";
 import ChatPanel from "@/components/chat-panel";
 import ChatSidebar from "@/components/chat-sidebar";
+import ConjectureSidebar from "@/components/conjecture-sidebar";
+import ExplorationSidebar from "@/components/exploration-sidebar";
+import SurfacesPanel from "@/components/surfaces-panel";
+import HypothesesPanel from "@/components/hypotheses-panel";
 import LockedPanel from "@/components/locked-panel";
 import {
   type PPRProgress,
@@ -87,6 +91,29 @@ export default function Home() {
     [],
   );
 
+  // Stage detection
+  const [stage, setStage] = useState<
+    "ingestion" | "conjecture" | "exploration"
+  >("ingestion");
+
+  useEffect(() => {
+    async function detectStage() {
+      if (!pprState.pprConfirmed) {
+        setStage("ingestion");
+        return;
+      }
+      try {
+        const betsRes = await fetch("/api/bets");
+        const betsData = betsRes.ok ? await betsRes.json() : { bets: [] };
+        const bets = betsData.bets ?? betsData;
+        setStage(bets.length > 0 ? "exploration" : "conjecture");
+      } catch {
+        setStage("conjecture");
+      }
+    }
+    detectStage();
+  }, [pprState]);
+
   // Derive tab lock states from PPR
   const hasPPR = pprState.pprConfirmed;
   const requiredDone = pprState.pprProgress
@@ -94,13 +121,13 @@ export default function Home() {
         (f) => pprState.pprProgress![f.key] !== "empty",
       )
     : false;
-  const hasSectors = hasPPR; // Once PPR is confirmed, surfaces/hypotheses unlock
+  const hasExploration = stage === "exploration";
 
   const tabs: TabDef[] = [
     { id: "chat", label: "chat", state: "active" },
-    { id: "surfaces", label: "surfaces", state: hasSectors ? "active" : "locked" },
-    { id: "hypotheses", label: "hypotheses", state: hasSectors ? "active" : "locked" },
-    { id: "people", label: "people", state: hasPPR ? "active" : "locked" },
+    { id: "surfaces", label: "surfaces", state: hasExploration ? "active" : "locked" },
+    { id: "hypotheses", label: "hypotheses", state: hasExploration ? "active" : "locked" },
+    { id: "people", label: "people", state: "locked" },
   ];
 
   return (
@@ -117,58 +144,53 @@ export default function Home() {
               />
             </div>
             <div className="w-96 shrink-0 overflow-y-auto">
-              <ChatSidebar
-                ppr={pprState.ppr}
-                progress={pprState.pprProgress}
-                confirmed={pprState.pprConfirmed}
-                requiredDone={requiredDone}
-                onFieldEdit={handleFieldEdit}
-                onConfirmAll={handleConfirmAll}
-              />
+              {stage === "ingestion" && (
+                <ChatSidebar
+                  ppr={pprState.ppr}
+                  progress={pprState.pprProgress}
+                  confirmed={pprState.pprConfirmed}
+                  requiredDone={requiredDone}
+                  onFieldEdit={handleFieldEdit}
+                  onConfirmAll={handleConfirmAll}
+                />
+              )}
+              {stage === "conjecture" && <ConjectureSidebar />}
+              {stage === "exploration" && <ExplorationSidebar />}
             </div>
           </>
         )}
 
         {currentTab === "surfaces" && (
-          hasSectors ? (
-            <div className="flex-1 p-4">
-              {/* TODO: surfaces view */}
-              <p className="text-divider">surfaces view</p>
+          hasExploration ? (
+            <div className="flex-1 overflow-hidden">
+              <SurfacesPanel />
             </div>
           ) : (
             <LockedPanel
               label="surfaces"
-              reason="complete product context in chat to unlock"
+              reason="complete product context and generate conjectures to unlock"
             />
           )
         )}
 
         {currentTab === "hypotheses" && (
-          hasSectors ? (
-            <div className="flex-1 p-4">
-              {/* TODO: hypotheses quest board */}
-              <p className="text-divider">hypotheses view</p>
+          hasExploration ? (
+            <div className="flex-1 overflow-hidden">
+              <HypothesesPanel />
             </div>
           ) : (
             <LockedPanel
               label="hypotheses"
-              reason="complete product context in chat to unlock"
+              reason="complete product context and generate conjectures to unlock"
             />
           )
         )}
 
         {currentTab === "people" && (
-          hasPPR ? (
-            <div className="flex-1 p-4">
-              {/* TODO: people CRM + graph */}
-              <p className="text-divider">people view</p>
-            </div>
-          ) : (
-            <LockedPanel
-              label="people"
-              reason="complete product context in chat to unlock"
-            />
-          )
+          <LockedPanel
+            label="people"
+            reason="coming soon"
+          />
         )}
       </div>
     </div>
