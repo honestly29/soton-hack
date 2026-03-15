@@ -15,12 +15,9 @@ type Stage = "ingestion" | "conjecture" | "exploration";
 
 async function detectStage(): Promise<Stage> {
   const db = await getDb();
-  const hasConjectures = db.data.conjectures.length > 0;
-  const hasAccepted = db.data.conjectures.some((c) => c.status === "accepted");
-  const hasBets = db.data.bets.length > 0;
 
   if (!db.data.pprConfirmed) return "ingestion";
-  if (!hasConjectures || (!hasAccepted && !hasBets)) return "conjecture";
+  if (db.data.bets.length === 0) return "conjecture";
   return "exploration";
 }
 
@@ -71,16 +68,20 @@ The user has completed their Product-Problem Representation. Your job is to help
 
 ## Workflow
 
-1. When the user is ready, call \`generateConjectures\` to generate sector hypotheses.
-2. Present the generated conjectures clearly — for each one, explain the sector label, key dimensions, and reasoning.
-3. Help the user review each conjecture. They can accept or reject each one using \`reviewConjecture\`.
-4. Once at least one conjecture is accepted, offer to run deep research on accepted conjectures using \`runDeepResearch\`.
+1. First call \`generateConjectures\` to create sector hypotheses from the PPR (or return existing ones if already generated).
+2. Present each conjecture clearly — sector label, key dimensions, and reasoning.
+3. Help the user review each conjecture. Use \`reviewConjecture\` to accept or reject each one.
+4. When the user wants to run deep research, call \`runDeepResearch\` with NO arguments — this automatically researches ALL accepted conjectures. Do NOT ask for IDs. Just call the tool.
+5. You can call \`getAcceptedConjectures\` to see which conjectures are accepted.
+
+## IMPORTANT
+- When the user says "run deep research" or similar, IMMEDIATELY call \`runDeepResearch({})\` — do NOT ask for IDs or clarification.
+- \`runDeepResearch\` with no conjectureId will automatically process all accepted conjectures.
 
 ## Guidelines
 
 - Explain each conjecture in plain language — don't just dump JSON.
 - Help the user understand why each sector was selected and what makes it promising.
-- If a user rejects a conjecture, acknowledge their reasoning.
 - After research completes, summarize the key bets and evidence found.
 - Be proactive but not pushy. Let the user drive the pace.`;
 
@@ -280,46 +281,60 @@ function conjectureTools() {
       },
     }),
 
+    getAcceptedConjectures: tool({
+      description: "Get all accepted conjectures with their IDs and sector labels. Call this before running deep research.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const db = await getDb();
+        const accepted = db.data.conjectures.filter((c) => c.status === "accepted");
+        return {
+          conjectures: accepted.map((c) => {
+            const sector = db.data.sectors.find((s) => s.id === c.sectorId);
+            return { conjectureId: c.id, sectorLabel: sector?.label ?? c.summary, status: c.status };
+          }),
+        };
+      },
+    }),
+
     runDeepResearch: tool({
       description:
-        "Run deep research on an accepted conjecture. Searches the web and generates structured bets and evidence.",
+        "Run deep research on accepted conjectures. Pass a specific conjectureId, or omit it to research ALL accepted conjectures.",
       inputSchema: z.object({
-        conjectureId: z.string().describe("The ID of the conjecture to research"),
+        conjectureId: z.string().optional().describe("The ID of a specific conjecture to research. Omit to research all accepted conjectures."),
       }),
       execute: async ({ conjectureId }) => {
         const db = await getDb();
-        const conjecture = db.data.conjectures.find((c) => c.id === conjectureId);
-        if (!conjecture) return { success: false, error: "Conjecture not found" };
-
-        const sector = db.data.sectors.find((s) => s.id === conjecture.sectorId);
-        if (!sector) return { success: false, error: "Sector not found" };
-
         const ppr = db.data.ppr;
         if (!ppr) return { success: false, error: "PPR not found" };
 
-        const { bets, evidence } = await deepResearch(ppr, sector, conjecture);
+        // Determine which conjectures to research
+        const targets = conjectureId
+          ? db.data.conjectures.filter((c) => c.id === conjectureId && c.status === "accepted")
+          : db.data.conjectures.filter((c) => c.status === "accepted");
 
-        // Write to DB
-        db.data.bets.push(...bets);
-        db.data.evidence.push(...evidence);
-        conjecture.status = "researched";
+        if (targets.length === 0) return { success: false, error: "No accepted conjectures to research" };
+
+        const results = [];
+        for (const conjecture of targets) {
+          const sector = db.data.sectors.find((s) => s.id === conjecture.sectorId);
+          if (!sector) continue;
+
+          const { bets, evidence } = await deepResearch(ppr, sector, conjecture);
+          db.data.bets.push(...bets);
+          db.data.evidence.push(...evidence);
+          conjecture.status = "researched";
+          results.push({ sectorLabel: sector.label, betsGenerated: bets.length, evidenceGenerated: evidence.length });
+        }
+
         await db.write();
 
         return {
           success: true,
-          conjectureId,
-          sectorLabel: sector.label,
-          betsGenerated: bets.length,
-          evidenceGenerated: evidence.length,
-          bets: bets.map((b) => ({
-            id: b.id,
-            claim: b.claim,
-            confidence: b.confidence,
-            evidenceConfidence: b.evidenceConfidence,
-            surfaceTarget: b.surfaceTarget,
-            updatePower: b.updatePower,
-            isLoadBearing: b.isLoadBearing,
-          })),
+          researchedCount: results.length,
+          results,
+          totalBets: db.data.bets.length,
+          totalEvidence: db.data.evidence.length,
+          summary: results.map((r) => `${r.sectorLabel}: ${r.betsGenerated} bets, ${r.evidenceGenerated} evidence`).join("; "),
         };
       },
     }),

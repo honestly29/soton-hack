@@ -36,17 +36,23 @@ export function createAgent<
 }: CreateAgentOptions<TOOLS, OUTPUT>) {
   const logger = agentsLogger.child(name);
 
+  // Bedrock rejects reasoningConfig when output_config (structured output) is also present.
+  // Only enable reasoning when there's no structured output requested.
+  const providerOptions = output
+    ? undefined
+    : {
+        bedrock: {
+          reasoningConfig: { type: "enabled" as const, budgetTokens: thinkingBudget },
+        },
+      };
+
   return new ToolLoopAgent<never, TOOLS, OUTPUT>({
     model,
     instructions,
     tools,
     output,
     stopWhen: stepCountIs(maxSteps),
-    providerOptions: {
-      bedrock: {
-        reasoningConfig: { type: "enabled", budgetTokens: thinkingBudget },
-      },
-    },
+    providerOptions,
     experimental_onStart() {
       logger.info("start");
     },

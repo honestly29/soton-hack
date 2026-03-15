@@ -30,7 +30,7 @@ const betItemSchema = z.object({
   testabilityDifficulty: z.enum(["trivial", "easy", "moderate", "hard", "very_hard"]).describe("How hard is it to test this claim?"),
   isLoadBearing: z.boolean().describe("If this bet is false, does the whole sector thesis collapse?"),
   linkedEvidenceIndices: z.array(z.number()).describe("Indices into the evidence array that support/challenge this bet"),
-  evidenceDirections: z.array(z.enum(["supports", "challenges"])).describe("Direction of each linked evidence (parallel to linkedEvidenceIndices)"),
+  evidenceDirections: z.array(z.enum(["supports", "challenges"])).describe("Direction of each linked evidence"),
 });
 
 const researchOutputSchema = z.object({
@@ -55,7 +55,7 @@ Given a product's PPR (Product-Problem Representation), a target sector, and a c
 - Search for: market size, growth trends, pain points, existing solutions, buyer personas, recent news
 - Look for both supporting AND challenging evidence
 - Focus on specifics: numbers, company names, product names, pricing, adoption rates
-- Search multiple angles: industry verticals, job roles, technology trends, regulatory changes
+- Make 3-5 web searches covering different angles
 
 ## Bet Generation Guidelines
 
@@ -66,15 +66,9 @@ Given a product's PPR (Product-Problem Representation), a target sector, and a c
   - "deliverability": Can we actually serve this segment with current capabilities?
   - "incumbent_gap": Is there a meaningful gap in existing solutions?
 - confidence: Your overall belief this is true (factor in reasoning + evidence)
-- evidenceConfidence: How well-supported by hard evidence (always <= confidence — gut feel can exceed evidence)
+- evidenceConfidence: How well-supported by hard evidence (always <= confidence)
 - isLoadBearing: true if this bet being wrong would invalidate the entire sector thesis
-- Generate 4-8 bets covering different surfaces
-
-## Evidence Guidelines
-
-- Each evidence item should be a specific, citable finding
-- signalQuality: how reliable is this data point?
-- Link evidence to bets using the indices arrays`;
+- Generate 4-8 bets covering different surfaces`;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -126,7 +120,7 @@ Search the web for relevant data about this sector, then generate structured evi
   const now = new Date().toISOString();
 
   // Create Evidence records
-  const evidenceRecords: Evidence[] = output.evidence.map((e: { content: string; signalQuality: Evidence["signalQuality"]; tags: string[] }) => ({
+  const evidenceRecords: Evidence[] = output.evidence.map((e) => ({
     id: crypto.randomUUID(),
     content: e.content,
     sourceType: "desk_research" as const,
@@ -139,26 +133,15 @@ Search the web for relevant data about this sector, then generate structured evi
   }));
 
   // Create Bet records with linked evidence
-  const betRecords: Bet[] = output.bets.map((b: {
-    claim: string;
-    confidence: number;
-    evidenceConfidence: number;
-    surfaceTarget: Bet["surfaceTarget"];
-    secondarySurfaces: Bet["surfaceTarget"][];
-    updatePower: Bet["updatePower"];
-    testabilityDifficulty: Bet["testabilityDifficulty"];
-    isLoadBearing: boolean;
-    linkedEvidenceIndices: number[];
-    evidenceDirections: ("supports" | "challenges")[];
-  }) => ({
+  const betRecords: Bet[] = output.bets.map((b) => ({
     id: crypto.randomUUID(),
     claim: b.claim,
     confidence: b.confidence,
     evidenceConfidence: Math.min(b.evidenceConfidence, b.confidence),
-    linkedEvidence: b.linkedEvidenceIndices.map((idx: number, i: number) => ({
+    linkedEvidence: b.linkedEvidenceIndices.map((idx, i) => ({
       evidenceId: evidenceRecords[idx]?.id ?? "",
       direction: b.evidenceDirections[i] ?? ("supports" as const),
-    })).filter((le: { evidenceId: string }) => le.evidenceId !== ""),
+    })).filter((le) => le.evidenceId !== ""),
     surfaceTarget: b.surfaceTarget,
     secondarySurfaces: b.secondarySurfaces,
     updatePower: b.updatePower,
@@ -167,7 +150,7 @@ Search the web for relevant data about this sector, then generate structured evi
     createdAt: now,
     createdBy: "research_agent" as const,
     sectorIds: [sector.id],
-    tracked: true,
+    tracked: false,
     validationPlan: [],
   }));
 

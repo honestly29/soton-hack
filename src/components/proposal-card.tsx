@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 interface ProposalCardProps {
   id: string;
   title: string;
@@ -21,20 +19,16 @@ export default function ProposalCard({
   onAccept,
   onReject,
 }: ProposalCardProps) {
-  const [localStatus, setLocalStatus] = useState(status);
-
   const handleAccept = () => {
-    setLocalStatus("accepted");
     onAccept(id);
   };
 
   const handleReject = () => {
-    setLocalStatus("rejected");
     onReject(id);
   };
 
-  const isAccepted = localStatus === "accepted";
-  const isRejected = localStatus === "rejected";
+  const isAccepted = status === "accepted";
+  const isRejected = status === "rejected";
 
   return (
     <div
@@ -63,7 +57,7 @@ export default function ProposalCard({
         <p className="mt-1 line-clamp-1 text-muted/70">{reasoning}</p>
       )}
 
-      {localStatus === "pending" && (
+      {status === "pending" && (
         <div className="mt-2 flex gap-4">
           <button
             type="button"

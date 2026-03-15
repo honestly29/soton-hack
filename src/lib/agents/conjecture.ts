@@ -1,11 +1,8 @@
-import { generateObject } from "ai";
+import { createAgent } from "../agent";
+import { Output } from "ai";
 import { z } from "zod";
-import { model } from "../agent";
 import { getDb } from "../store";
-import { getRootLogger } from "../logger";
 import type { Sector, Conjecture, Proposal } from "../types";
-
-const logger = getRootLogger().child("agents").child("conjecture");
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -23,7 +20,7 @@ const conjecturesOutputSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// System prompt
+// Agent
 // ---------------------------------------------------------------------------
 
 const INSTRUCTIONS = `You are a GTM strategist specializing in beachhead market identification.
@@ -59,16 +56,17 @@ export async function generateConjectures() {
     throw new Error("PPR not found — cannot generate conjectures without a product-problem representation");
   }
 
-  logger.info("start");
-
-  const { object: output } = await generateObject({
-    model,
-    schema: conjecturesOutputSchema,
-    system: INSTRUCTIONS,
-    prompt: `Analyze this Product-Problem Representation and identify 5-8 beachhead customer segments:\n\n${JSON.stringify(ppr, null, 2)}`,
+  const agent = createAgent({
+    name: "conjecture",
+    instructions: INSTRUCTIONS,
+    output: Output.object({ schema: conjecturesOutputSchema }),
+    maxSteps: 3,
+    thinkingBudget: 10000,
   });
 
-  logger.info("done", { count: output.conjectures.length });
+  const { output } = await agent.generate({
+    prompt: `Analyze this Product-Problem Representation and identify 5-8 beachhead customer segments:\n\n${JSON.stringify(ppr, null, 2)}`,
+  });
 
   const now = new Date().toISOString();
   const sectors: Sector[] = [];

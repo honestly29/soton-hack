@@ -442,7 +442,8 @@ export default function ChatPanel({ endpoint, onStatusChange }: ChatPanelProps) 
                         <div key={partKey} className="mt-2 flex flex-col gap-2">
                           {(
                             conjectures as Array<{
-                              id: string;
+                              conjectureId: string;
+                              proposalId: string;
                               summary: string;
                               reasoning?: string;
                               sectorLabel?: string;
@@ -450,13 +451,13 @@ export default function ChatPanel({ endpoint, onStatusChange }: ChatPanelProps) 
                             }>
                           ).map((c) => (
                             <ProposalCard
-                              key={c.id}
-                              id={c.id}
+                              key={c.proposalId}
+                              id={c.proposalId}
                               title={c.sectorLabel ?? c.summary}
                               summary={c.summary}
                               reasoning={c.reasoning}
                               status={
-                                proposalStatuses[c.id] ??
+                                proposalStatuses[c.proposalId] ??
                                 (c.status as
                                   | "pending"
                                   | "accepted"
@@ -468,6 +469,17 @@ export default function ChatPanel({ endpoint, onStatusChange }: ChatPanelProps) 
                             />
                           ))}
                         </div>
+                      );
+                    }
+
+                    if (toolName === "reviewConjecture") {
+                      const result = toolPart.output as
+                        | Record<string, unknown>
+                        | undefined;
+                      return (
+                        <p key={partKey} className="text-muted">
+                          conjecture {String(result?.status ?? "updated")}
+                        </p>
                       );
                     }
 
@@ -504,14 +516,22 @@ export default function ChatPanel({ endpoint, onStatusChange }: ChatPanelProps) 
                       );
                     }
 
-                    // fallback for other completed tool calls
-                    return null;
+                    if (toolName === "getAcceptedConjectures" || toolName === "reviewConjecture" || toolName === "getPPRProgress") {
+                      return <span key={partKey} />;
+                    }
+
+                    // fallback: show tool name as muted text
+                    return (
+                      <p key={partKey} className="text-muted">
+                        {toolName}
+                      </p>
+                    );
                   }
 
                   // output-error, approval states, etc.
-                  return null;
+                  return <span key={partKey} />;
                 }
-                return null;
+                return <span key={partKey} />;
               })}
             </div>
           </div>
