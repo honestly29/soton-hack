@@ -1,44 +1,69 @@
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
-import {
-  generateText as aiGenerateText,
-  streamText as aiStreamText,
-  type ModelMessage,
-  type Tool,
-} from "ai";
+import { ToolLoopAgent, stepCountIs, Output, type ToolSet } from "ai";
+import { getRootLogger } from "./logger";
 
 const bedrock = createAmazonBedrock({
   region: process.env.AWS_REGION,
   apiKey: process.env.AWS_BEARER_TOKEN_BEDROCK,
 });
 
-const model = bedrock("us.anthropic.claude-sonnet-4-20250514-v1:0");
+export const model = bedrock("us.anthropic.claude-sonnet-4-20250514-v1:0");
 
-type AgentOptions =
-  | {
-      system?: string;
-      prompt: string;
-      messages?: undefined;
-      tools?: Record<string, Tool>;
-      maxSteps?: number;
-    }
-  | {
-      system?: string;
-      prompt?: undefined;
-      messages: ModelMessage[];
-      tools?: Record<string, Tool>;
-      maxSteps?: number;
-    };
+const agentsLogger = getRootLogger().child("agents");
 
-export async function generateResponse(options: AgentOptions) {
-  return aiGenerateText({
-    model,
-    ...options,
-  });
+interface CreateAgentOptions<
+  TOOLS extends ToolSet,
+  OUTPUT extends Output.Output,
+> {
+  name: string;
+  instructions: string;
+  tools?: TOOLS;
+  output?: OUTPUT;
+  maxSteps?: number;
+  thinkingBudget?: number;
 }
 
-export function streamResponse(options: AgentOptions) {
-  return aiStreamText({
+export function createAgent<
+  TOOLS extends ToolSet = {},
+  OUTPUT extends Output.Output = never,
+>({
+  name,
+  instructions,
+  tools,
+  output,
+  maxSteps = 20,
+  thinkingBudget = 4000,
+}: CreateAgentOptions<TOOLS, OUTPUT>) {
+  const logger = agentsLogger.child(name);
+
+  return new ToolLoopAgent<never, TOOLS, OUTPUT>({
     model,
-    ...options,
+    instructions,
+    tools,
+    output,
+    stopWhen: stepCountIs(maxSteps),
+    providerOptions: {
+      bedrock: {
+        reasoningConfig: { type: "enabled", budgetTokens: thinkingBudget },
+      },
+    },
+    experimental_onStart() {
+      logger.info("start");
+    },
+    experimental_onStepStart({ stepNumber }) {
+      logger.info(`step ${stepNumber}`);
+    },
+    experimental_onToolCallStart({ toolCall }) {
+      logger.info("tool:call", { tool: toolCall.toolName, input: toolCall.input });
+    },
+    experimental_onToolCallFinish({ toolCall }) {
+      logger.info("tool:done", { tool: toolCall.toolName });
+    },
+    onStepFinish({ finishReason, usage }) {
+      logger.info("step:done", { finishReason, usage });
+    },
+    onFinish({ finishReason, usage }) {
+      logger.info("done", { finishReason, usage });
+    },
   });
 }
