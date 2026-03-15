@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -11,7 +11,9 @@
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.77",
     "ai": "^6.0.116",
+    "lowdb": "^7.0.1",
     "next": "16.1.6",
+    "next-auth": "^5.0.0-beta.30",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
