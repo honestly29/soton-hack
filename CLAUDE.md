@@ -27,7 +27,7 @@ AI-assisted GTM discovery system for identifying and validating beachhead custom
 ## Node version
 
 - **Required:** Node 22 LTS (pinned in `.nvmrc`, enforced via `engines` in `package.json`)
-- `.npmrc` sets `engine-strict=true` so `npm install` will error on wrong Node version
+- `.npmrc` sets `engine-strict=false` (warns but doesn't block, since bun is the primary runtime)
 
 ## Known audit suppressions
 
