@@ -1,42 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  Radar,
+  ResponsiveContainer,
+} from "recharts";
 import type { Sector, ComputedSurface, Bet, SectorStatus } from "@/lib/types";
-
-// ---------------------------------------------------------------------------
-// SurfaceBar
-// ---------------------------------------------------------------------------
-
-function SurfaceBar({
-  label,
-  betLevel,
-  evidenceLevel,
-}: {
-  label: string;
-  betLevel: number;
-  evidenceLevel: number;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-32 shrink-0 text-muted">
-        {label.replace("_", " ")}
-      </span>
-      <div className="relative h-2 flex-1 rounded bg-divider">
-        <div
-          className="absolute inset-y-0 left-0 rounded bg-accent/40"
-          style={{ width: `${betLevel * 100}%` }}
-        />
-        <div
-          className="absolute inset-y-0 left-0 rounded bg-foreground/60"
-          style={{ width: `${evidenceLevel * 100}%` }}
-        />
-      </div>
-      <span className="w-8 text-right text-muted">
-        {Math.round(betLevel * 100)}
-      </span>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Status badge colors
@@ -50,6 +22,127 @@ const STATUS_COLORS: Record<SectorStatus, string> = {
   paused: "text-divider border-divider",
   killed: "text-muted border-divider line-through",
 };
+
+const SURFACE_LABELS: Record<string, string> = {
+  need: "NEED",
+  buying_power: "BUYING",
+  deliverability: "DELIVER",
+  incumbent_gap: "GAP",
+};
+
+// ---------------------------------------------------------------------------
+// Radar card per sector
+// ---------------------------------------------------------------------------
+
+function SectorRadar({
+  sector,
+  surfaces,
+  betCount,
+}: {
+  sector: Sector;
+  surfaces: ComputedSurface[];
+  betCount: number;
+}) {
+  const SURFACE_TYPES = ["need", "buying_power", "deliverability", "incumbent_gap"] as const;
+
+  // Build raw values first, then compute dynamic scale
+  const rawValues = SURFACE_TYPES.map((st) => {
+    const s = surfaces.find((x) => x.surfaceType === st);
+    return { bet: s?.betLevel ?? 0, evidence: s?.evidenceLevel ?? 0 };
+  });
+
+  // Dynamic domain: scale to make gaps visible
+  // Min anchored at 0, max at the ceiling of highest value + headroom
+  const allValues = rawValues.flatMap((v) => [v.bet, v.evidence]);
+  const maxVal = Math.max(...allValues, 0.1);
+  const domainMax = Math.ceil(maxVal * 12) / 10; // ~20% headroom, rounded up
+
+  const radarData = SURFACE_TYPES.map((st, i) => ({
+    surface: SURFACE_LABELS[st],
+    bet: rawValues[i].bet * 100 / domainMax,
+    evidence: rawValues[i].evidence * 100 / domainMax,
+    // Store raw for tooltip
+    rawBet: Math.round(rawValues[i].bet * 100),
+    rawEvidence: Math.round(rawValues[i].evidence * 100),
+    fullMark: 100,
+  }));
+
+  const avgGap =
+    surfaces.length > 0
+      ? surfaces.reduce((sum, s) => sum + Math.abs(s.gap), 0) / surfaces.length
+      : 0;
+
+  return (
+    <div className="rounded border border-solid border-divider bg-surface px-5 py-4">
+      {/* Header */}
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-medium text-foreground">{sector.label}</span>
+        <span
+          className={`rounded border border-solid px-2 py-0.5 text-[length:inherit] ${STATUS_COLORS[sector.status]}`}
+        >
+          {sector.status}
+        </span>
+      </div>
+
+      {/* Radar chart */}
+      <div className="mx-auto" style={{ width: 260, height: 220 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
+            <PolarGrid
+              stroke="#D4CFC6"
+              strokeDasharray="2 2"
+            />
+            <PolarAngleAxis
+              dataKey="surface"
+              tick={{
+                fill: "#8A8078",
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+              }}
+            />
+            {/* Bet layer — larger polygon, accent fill */}
+            <Radar
+              name="bet"
+              dataKey="bet"
+              stroke="#5C4D3C"
+              fill="#5C4D3C"
+              fillOpacity={0.2}
+              strokeWidth={2}
+            />
+            {/* Evidence layer — smaller polygon, solid fill to punch out the gap */}
+            <Radar
+              name="evidence"
+              dataKey="evidence"
+              stroke="#8A8078"
+              fill="#F5F3EF"
+              fillOpacity={0.85}
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Stats row */}
+      <div className="mt-1 flex justify-between text-muted">
+        <span>{betCount} bets</span>
+        <span>gap {Math.round(avgGap * 100)}%</span>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-2 flex gap-4 text-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2 w-4 rounded bg-accent/30" />
+          conviction
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2 w-4 rounded bg-divider" />
+          evidence
+        </span>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // SurfacesPanel
@@ -110,53 +203,25 @@ export default function SurfacesPanel() {
     );
   }
 
-  const SURFACE_TYPES = [
-    "need",
-    "buying_power",
-    "deliverability",
-    "incumbent_gap",
-  ] as const;
-
-  function getSurface(sectorId: string, surfaceType: string) {
-    return data!.surfaces.find(
-      (s) => s.sectorId === sectorId && s.surfaceType === surfaceType,
-    );
-  }
-
   return (
     <div className="h-full overflow-y-auto p-6">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {data.sectors.map((sector) => (
-          <div
-            key={sector.id}
-            className="rounded border border-solid border-divider bg-surface px-4 py-3"
-          >
-            <div className="mb-3 flex items-center gap-2">
-              <span className="font-medium text-foreground">
-                {sector.label}
-              </span>
-              <span
-                className={`rounded border border-solid px-2 py-0.5 text-[length:inherit] ${STATUS_COLORS[sector.status]}`}
-              >
-                {sector.status}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              {SURFACE_TYPES.map((st) => {
-                const surface = getSurface(sector.id, st);
-                return (
-                  <SurfaceBar
-                    key={st}
-                    label={st}
-                    betLevel={surface?.betLevel ?? 0}
-                    evidenceLevel={surface?.evidenceLevel ?? 0}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
+        {data.sectors.map((sector) => {
+          const sectorSurfaces = data.surfaces.filter(
+            (s) => s.sectorId === sector.id,
+          );
+          const sectorBets = data.bets.filter((b) =>
+            b.sectorIds.includes(sector.id),
+          );
+          return (
+            <SectorRadar
+              key={sector.id}
+              sector={sector}
+              surfaces={sectorSurfaces}
+              betCount={sectorBets.length}
+            />
+          );
+        })}
       </div>
     </div>
   );
