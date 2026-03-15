@@ -22,7 +22,7 @@ export default function SourceList({ sources, onRemove }: SourceListProps) {
   if (sources.length === 0) return null;
 
   return (
-    <div className="w-full max-w-content font-mono text-sm">
+    <div className="w-full max-w-content font-mono">
       {sources.map((source, index) => {
         const isLast = index === sources.length - 1;
         const connector = isLast ? "└── " : "├── ";

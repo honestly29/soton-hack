@@ -100,13 +100,41 @@ export interface Conversation {
 }
 
 export interface ProductProblemRepresentation {
+  // Required — must be filled to run conjecture
   painDescription: string;
   capabilities: string;
   targetPersona: string;
+  // Recommended — improves conjecture quality
   conditions: string;
   infrastructureRequirements: string;
   currentState: string;
+  // Enrichment — improves sector targeting
+  competitiveLandscape: string;
+  pricingModel: string;
+  founderAdvantage: string;
+  geographicContext: string;
 }
+
+export type PPRFieldStatus = "empty" | "draft" | "confirmed";
+
+export type PPRProgress = Record<keyof ProductProblemRepresentation, PPRFieldStatus>;
+
+export const PPR_FIELDS: {
+  key: keyof ProductProblemRepresentation;
+  label: string;
+  tier: "required" | "recommended" | "enrichment";
+}[] = [
+  { key: "painDescription", label: "What pain does this solve?", tier: "required" },
+  { key: "capabilities", label: "What does the product do?", tier: "required" },
+  { key: "targetPersona", label: "Who experiences this pain?", tier: "required" },
+  { key: "conditions", label: "When does the pain arise?", tier: "recommended" },
+  { key: "infrastructureRequirements", label: "Buyer environment requirements?", tier: "recommended" },
+  { key: "currentState", label: "What exists today vs planned?", tier: "recommended" },
+  { key: "competitiveLandscape", label: "Existing solutions / competitors?", tier: "enrichment" },
+  { key: "pricingModel", label: "Pricing model?", tier: "enrichment" },
+  { key: "founderAdvantage", label: "Founder's unique advantage?", tier: "enrichment" },
+  { key: "geographicContext", label: "Target markets / regulations?", tier: "enrichment" },
+];
 
 // --- HITL proposals ---
 

@@ -205,7 +205,7 @@ export default function SourceInput({
           {menuOpen && (
             <div
               ref={menuRef}
-              className="absolute right-0 top-full z-10 mt-1 flex flex-col border border-solid border-divider bg-background text-sm"
+              className="absolute right-0 top-full z-10 mt-1 flex flex-col border border-solid border-divider bg-background"
             >
               <button
                 type="button"

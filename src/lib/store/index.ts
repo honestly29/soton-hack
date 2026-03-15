@@ -6,10 +6,13 @@ import type {
   Conversation,
   ProductProblemRepresentation,
   Proposal,
+  PPRProgress,
 } from "../types";
 
 export interface DbSchema {
   ppr: ProductProblemRepresentation | null;
+  pprConfirmed: boolean;
+  pprProgress: PPRProgress | null;
   sectors: Sector[];
   bets: Bet[];
   evidence: Evidence[];
@@ -19,6 +22,8 @@ export interface DbSchema {
 
 const DEFAULT_DATA: DbSchema = {
   ppr: null,
+  pprConfirmed: false,
+  pprProgress: null,
   sectors: [],
   bets: [],
   evidence: [],

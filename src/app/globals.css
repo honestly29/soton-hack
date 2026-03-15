@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #EDE8DE;
-  --color-foreground: #3D3428;
-  --color-divider: #B8B0A0;
-  --color-divider-light: #D0C9BC;
+  --color-background: #F5F3EF;
+  --color-foreground: #1A1714;
+  --color-muted: #8A8078;
+  --color-divider: #D4CFC6;
+  --color-divider-light: #E5E1DA;
+  --color-accent: #5C4D3C;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #FAF9F7;
 
   --font-mono: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas,
     "Liberation Mono", monospace;
@@ -21,8 +25,8 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-mono);
-  font-size: 0.85rem;
-  line-height: 1.58;
+  font-size: 1rem;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

@@ -37,6 +37,26 @@ export const productProblemSchema = z.object({
     .describe(
       "What exists today vs what is planned? Distinguish shipped capabilities from roadmap.",
     ),
+  competitiveLandscape: z
+    .string()
+    .describe(
+      "What existing solutions or incumbents address this pain? How do buyers solve it today?",
+    ),
+  pricingModel: z
+    .string()
+    .describe(
+      "How does or will the product charge? Subscription, usage-based, per-seat, etc.",
+    ),
+  founderAdvantage: z
+    .string()
+    .describe(
+      "What unique advantage does the founder/team have? Domain expertise, network, technical moat.",
+    ),
+  geographicContext: z
+    .string()
+    .describe(
+      "Target markets, geographic focus, regulatory considerations.",
+    ),
 });
 
 export type ProductProblemSchema = z.infer<typeof productProblemSchema>;
